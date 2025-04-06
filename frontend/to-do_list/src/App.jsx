@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
-  Container,
-  TextField,
   Button,
+  TextField,
   List,
   ListItem,
   ListItemText,
   IconButton,
+  Checkbox,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -15,37 +15,67 @@ const API_URL = "http://127.0.0.1:8000";
 
 const App = () => {
   const [tasks, setTasks] = useState([]);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [name, setName] = useState("");
+  const [discr, setDiscr] = useState("");
 
   const fetchTasks = async () => {
     try {
-      const response = await axios.get(`${API_URL}/tasks`);
-      setTasks(response.data);
-    } catch (error) {
-      console.error("Ошибка при получении задач:", error);
+      const res = await axios.get(`${API_URL}/tasks`);
+      setTasks(res.data);
+    } catch (err) {
+      console.error("Ошибка при получении задач:", err);
     }
   };
 
   const addTask = async () => {
-    if (!newTaskTitle.trim()) return;
-    try {
-      const response = await axios.post(`${API_URL}/tasks`, {
-        title: newTaskTitle,
-      });
+    const newTask = {
+      name,
+      discr,
+      done: false,
+      date: new Date().toISOString(),
+    };
 
-      setTasks((prevTasks) => [...prevTasks, response.data]);
-      setNewTaskTitle("");
-    } catch (error) {
-      console.error("Ошибка при добавлении задачи:", error);
+    try {
+      await axios.post(`${API_URL}/tasks`, newTask, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      fetchTasks();
+      setName("");
+      setDiscr("");
+    } catch (err) {
+      console.error("Ошибка при добавлении задачи:", err);
     }
   };
 
   const deleteTask = async (id) => {
     try {
       await axios.delete(`${API_URL}/tasks/${id}`);
-      setTasks(tasks.filter((task) => task.id !== id));
-    } catch (error) {
-      console.error("Ошибка при удалении задачи:", error);
+      fetchTasks();
+    } catch (err) {
+      console.error("Ошибка при удалении задачи:", err);
+    }
+  };
+
+  const toggleDone = async (task) => {
+    try {
+      await axios.put(
+        `${API_URL}/tasks/${task.id}`,
+        {
+          ...task,
+          done: !task.done,
+          date: new Date().toISOString(),
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      fetchTasks();
+    } catch (err) {
+      console.error("Ошибка при обновлении задачи:", err);
     }
   };
 
@@ -54,37 +84,42 @@ const App = () => {
   }, []);
 
   return (
-    <Container>
-      <h1>To-Do List</h1>
+    <div style={{ padding: 20 }}>
+      <h2>To-Do List</h2>
       <TextField
-        label="Новая задача"
-        variant="outlined"
-        value={newTaskTitle}
-        onChange={(e) => setNewTaskTitle(e.target.value)}
-        style={{ marginRight: "1rem" }}
+        label="Название"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={{ marginRight: 10 }}
       />
-      <Button variant="contained" color="primary" onClick={addTask}>
-        Добавить задачу
+      <TextField
+        label="Описание"
+        value={discr}
+        onChange={(e) => setDiscr(e.target.value)}
+        style={{ marginRight: 10 }}
+      />
+      <Button variant="contained" onClick={addTask}>
+        Добавить
       </Button>
+
       <List>
         {tasks.map((task) => (
-          <ListItem
-            key={task.id}
-            secondaryAction={
-              <IconButton
-                edge="end"
-                aria-label="delete"
-                onClick={() => deleteTask(task.id)}
-              >
-                <DeleteIcon />
-              </IconButton>
-            }
-          >
-            <ListItemText primary={task.title} />
+          <ListItem key={task.id}>
+            <Checkbox checked={task.done} onChange={() => toggleDone(task)} />
+            <ListItemText
+              primary={task.name}
+              secondary={task.discr}
+              style={{
+                textDecoration: task.done ? "line-through" : "none",
+              }}
+            />
+            <IconButton onClick={() => deleteTask(task.id)}>
+              <DeleteIcon />
+            </IconButton>
           </ListItem>
         ))}
       </List>
-    </Container>
+    </div>
   );
 };
 
