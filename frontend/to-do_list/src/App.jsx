@@ -8,8 +8,12 @@ import {
   ListItemText,
   IconButton,
   Checkbox,
+  Box,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import SaveIcon from "@mui/icons-material/Save";
+import CancelIcon from "@mui/icons-material/Cancel";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -17,17 +21,19 @@ const App = () => {
   const [tasks, setTasks] = useState([]);
   const [name, setName] = useState("");
   const [discr, setDiscr] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editDiscr, setEditDiscr] = useState("");
+
+  const jsonHeaders = { "Content-Type": "application/json" };
 
   const fetchTasks = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/tasks`);
-      setTasks(res.data);
-    } catch (err) {
-      console.error("Ошибка при получении задач:", err);
-    }
+    const res = await axios.get(`${API_URL}/tasks`);
+    setTasks(res.data);
   };
 
   const addTask = async () => {
+    if (!name.trim() || !discr.trim()) return;
     const newTask = {
       name,
       discr,
@@ -35,48 +41,51 @@ const App = () => {
       date: new Date().toISOString(),
     };
 
-    try {
-      await axios.post(`${API_URL}/tasks`, newTask, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      fetchTasks();
-      setName("");
-      setDiscr("");
-    } catch (err) {
-      console.error("Ошибка при добавлении задачи:", err);
-    }
+    await axios.post(`${API_URL}/tasks`, newTask, { headers: jsonHeaders });
+    fetchTasks();
+    setName("");
+    setDiscr("");
   };
 
   const deleteTask = async (id) => {
-    try {
-      await axios.delete(`${API_URL}/tasks/${id}`);
-      fetchTasks();
-    } catch (err) {
-      console.error("Ошибка при удалении задачи:", err);
-    }
+    await axios.delete(`${API_URL}/tasks/${id}`);
+    fetchTasks();
   };
 
   const toggleDone = async (task) => {
-    try {
-      await axios.put(
-        `${API_URL}/tasks/${task.id}`,
-        {
-          ...task,
-          done: !task.done,
-          date: new Date().toISOString(),
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      fetchTasks();
-    } catch (err) {
-      console.error("Ошибка при обновлении задачи:", err);
-    }
+    await axios.put(
+      `${API_URL}/tasks/${task.id}`,
+      { ...task, done: !task.done, date: new Date().toISOString() },
+      { headers: jsonHeaders }
+    );
+    fetchTasks();
+  };
+
+  const startEditing = (task) => {
+    setEditingTaskId(task.id);
+    setEditName(task.name);
+    setEditDiscr(task.discr);
+  };
+
+  const cancelEditing = () => {
+    setEditingTaskId(null);
+    setEditName("");
+    setEditDiscr("");
+  };
+
+  const updateTask = async (id) => {
+    const updatedTask = {
+      name: editName,
+      discr: editDiscr,
+      done: tasks.find((t) => t.id === id)?.done || false,
+      date: new Date().toISOString(),
+    };
+
+    await axios.put(`${API_URL}/tasks/${id}`, updatedTask, {
+      headers: jsonHeaders,
+    });
+    cancelEditing();
+    fetchTasks();
   };
 
   useEffect(() => {
@@ -86,36 +95,72 @@ const App = () => {
   return (
     <div style={{ padding: 20 }}>
       <h2>To-Do List</h2>
-      <TextField
-        label="Название"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{ marginRight: 10 }}
-      />
-      <TextField
-        label="Описание"
-        value={discr}
-        onChange={(e) => setDiscr(e.target.value)}
-        style={{ marginRight: 10 }}
-      />
-      <Button variant="contained" onClick={addTask}>
-        Добавить
-      </Button>
-
+      <Box mb={2}>
+        <TextField
+          label="Название"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ marginRight: 10 }}
+        />
+        <TextField
+          label="Описание"
+          value={discr}
+          onChange={(e) => setDiscr(e.target.value)}
+          style={{ marginRight: 10 }}
+        />
+        <Button variant="contained" onClick={addTask}>
+          Добавить задачу
+        </Button>
+      </Box>
       <List>
         {tasks.map((task) => (
           <ListItem key={task.id}>
             <Checkbox checked={task.done} onChange={() => toggleDone(task)} />
-            <ListItemText
-              primary={task.name}
-              secondary={task.discr}
-              style={{
-                textDecoration: task.done ? "line-through" : "none",
-              }}
-            />
-            <IconButton onClick={() => deleteTask(task.id)}>
-              <DeleteIcon />
-            </IconButton>
+            {editingTaskId === task.id ? (
+              <Box
+                sx={{ display: "flex", flexDirection: "column", flexGrow: 1 }}
+              >
+                <TextField
+                  label="Название"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  margin="dense"
+                />
+                <TextField
+                  label="Описание"
+                  value={editDiscr}
+                  onChange={(e) => setEditDiscr(e.target.value)}
+                  margin="dense"
+                />
+              </Box>
+            ) : (
+              <ListItemText
+                primary={task.name}
+                secondary={task.discr}
+                style={{
+                  textDecoration: task.done ? "line-through" : "none",
+                }}
+              />
+            )}
+            {editingTaskId === task.id ? (
+              <Box>
+                <IconButton onClick={() => updateTask(task.id)}>
+                  <SaveIcon color="primary" />
+                </IconButton>
+                <IconButton onClick={cancelEditing}>
+                  <CancelIcon color="error" />
+                </IconButton>
+              </Box>
+            ) : (
+              <Box>
+                <IconButton onClick={() => startEditing(task)}>
+                  <EditIcon />
+                </IconButton>
+                <IconButton onClick={() => deleteTask(task.id)}>
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            )}
           </ListItem>
         ))}
       </List>
