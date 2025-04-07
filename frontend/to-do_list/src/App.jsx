@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import "./App.css";
 import axios from "axios";
 import {
   Button,
@@ -94,8 +95,7 @@ const App = () => {
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>To-Do List</h2>
-      <Box mb={2}>
+      <Box className="funSection">
         <TextField
           label="Название"
           value={name}
@@ -112,7 +112,8 @@ const App = () => {
           Добавить задачу
         </Button>
       </Box>
-      <List>
+      <h1 className="name">To-Do List</h1>
+      <List className="list">
         {tasks.map((task) => (
           <ListItem key={task.id}>
             <Checkbox checked={task.done} onChange={() => toggleDone(task)} />
